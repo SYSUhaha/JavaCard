@@ -9,19 +9,19 @@ import javacard.framework.JCSystem;
 import javacard.framework.Util;
 
 public class Purse extends Applet {
-    // ÊµÑéÄÚÈİ1
-    // ÎÄ¼şÏµÍ³
+    // å®éªŒå†…å®¹1
+    // æ–‡ä»¶ç³»ç»Ÿ
     // APDU
     private Papdu papdu;
-    // ÃÜÔ¿ÎÄ¼ş
+    // å¯†é’¥æ–‡ä»¶
     private KeyFile keyFile;
-    // Ó¦ÓÃ»ù±¾ÎÄ¼ş
+    // åº”ç”¨åŸºæœ¬æ–‡ä»¶
     private BinaryFile cardFile;
-    // ³Ö¿¨ÈË»ù±¾ÎÄ¼ş
+    // æŒå¡äººåŸºæœ¬æ–‡ä»¶
     private BinaryFile personFile;
-    // µç×ÓÇ®°üÎÄ¼ş
+    // ç”µå­é’±åŒ…æ–‡ä»¶
     private EPFile EPFile;
-    // ×¢²á
+    // æ³¨å†Œ
     public Purse(byte[] bArray, short bOffset, byte bLength) {
         papdu = new Papdu();
         byte aidLen = bArray[bOffset];
@@ -30,92 +30,92 @@ public class Purse extends Applet {
         else
             register(bArray, (short)(bOffset+1), aidLen);
     }
-    // °²×°
+    // å®‰è£…
     public static void install(byte[] bArray, short bOffset, byte bLength) {
         new Purse(bArray, bOffset, bLength);
     }
 
     
-    // ÊµÑéÄÚÈİ2
-    // Ö´ĞĞ
+    // å®éªŒå†…å®¹2
+    // æ‰§è¡Œ
     public void process(APDU apdu) {
         if (selectingApplet())  return;
-        // È¡APDU»º³åÇøÊı×éÒıÓÃ²¢½«Ö®¸³Öµ¸øĞÂ½¨Êı×é
+        // å–APDUç¼“å†²åŒºæ•°ç»„å¼•ç”¨å¹¶å°†ä¹‹èµ‹å€¼ç»™æ–°å»ºæ•°ç»„
         byte[] buf = apdu.getBuffer();
-        // ½ÓÊÕAPDUÖĞÊı¾İ¶Î²¢·µ»ØData¶ÎµÄ³¤¶È
+        // æ¥æ”¶APDUä¸­æ•°æ®æ®µå¹¶è¿”å›Dataæ®µçš„é•¿åº¦
         short lc = apdu.setIncomingAndReceive();
-        // È¡APDU»º³åÇøÖĞµÄÊı¾İ·Åµ½±äÁ¿papduÖĞ
+        // å–APDUç¼“å†²åŒºä¸­çš„æ•°æ®æ”¾åˆ°å˜é‡papduä¸­
         papdu.cla = buf[ISO7816.OFFSET_CLA];
         papdu.ins = buf[ISO7816.OFFSET_INS];
         papdu.p1 = buf[ISO7816.OFFSET_P1];
         papdu.p2 = buf[ISO7816.OFFSET_P2];
-        // ÅĞ¶ÏAPDUÊÇ·ñ°üº¬Êı¾İ¶Î
-        // °üº¬: »ñÈ¡Êı¾İ³¤¶È, ¸³Öµ¸øle
+        // åˆ¤æ–­APDUæ˜¯å¦åŒ…å«æ•°æ®æ®µ
+        // åŒ…å«: è·å–æ•°æ®é•¿åº¦, èµ‹å€¼ç»™le
         if (papdu.APDUContainData()) {
             papdu.lc = buf[ISO7816.OFFSET_LC];
             Util.arrayCopyNonAtomic(buf, ISO7816.OFFSET_CDATA, papdu.data, (short)0, lc);
             if (ISO7816.OFFSET_CDATA+lc>=buf.length) papdu.le=0;
             else papdu.le = buf[ISO7816.OFFSET_CDATA+lc];
         }
-        // ²»°üº¬: ²»ĞèÒªLCºÍData£¬Ôò»ñÈ¡»º³åÇøÔ­±¾µÄLC²¿·ÖÊµ¼ÊÉÏÊÇLE²¿·Ö
+        // ä¸åŒ…å«: ä¸éœ€è¦LCå’ŒDataï¼Œåˆ™è·å–ç¼“å†²åŒºåŸæœ¬çš„LCéƒ¨åˆ†å®é™…ä¸Šæ˜¯LEéƒ¨åˆ†
         else {
             papdu.le = buf[ISO7816.OFFSET_LC];
             papdu.lc = 0;
         }
-        // ÅĞ¶ÏÊÇ·ñĞèÒª·µ»ØÊı¾İ£¬²¢ÉèÖÃAPDU»º³åÇø
+        // åˆ¤æ–­æ˜¯å¦éœ€è¦è¿”å›æ•°æ®ï¼Œå¹¶è®¾ç½®APDUç¼“å†²åŒº
         boolean rc = handleEvent();
         if (rc && papdu.le!=(byte)0) {
             Util.arrayCopyNonAtomic(papdu.data, (short)0, buf, ISO7816.OFFSET_CDATA, (short)papdu.data.length);
             apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, papdu.le);//0,data.length
         }
     }
-    // ·ÖÎö&´¦ÀíÃüÁî
+    // åˆ†æ&å¤„ç†å‘½ä»¤
     private boolean handleEvent() {
-        // ¸ù¾İINS½øĞĞ·ÖÖ§£¬ºóĞøÎŞĞèÔÙ¶ÔINS½øĞĞÅĞ¶Ï
+        // æ ¹æ®INSè¿›è¡Œåˆ†æ”¯ï¼Œåç»­æ— éœ€å†å¯¹INSè¿›è¡Œåˆ¤æ–­
         switch (papdu.ins) {
-            // ÎÄ¼ş½¨Á¢
+            // æ–‡ä»¶å»ºç«‹
             case condef.INS_CREATE_FILE:
                 return create_file();
-            // Ğ´ÈëÃÜÔ¿
+            // å†™å…¥å¯†é’¥
             case condef.INS_WRITE_KEY:
                 return write_key();
-            // Ğ´Èë¶ş½øÖÆÎÄ¼ş
+            // å†™å…¥äºŒè¿›åˆ¶æ–‡ä»¶
             case condef.INS_WRITE_BIN:
                 return write_bin();
-            // ¶ÁÈë¶ş½øÖÆÎÄ¼ş
+            // è¯»å…¥äºŒè¿›åˆ¶æ–‡ä»¶
             case condef.INS_READ_BIN:
                 return read_bin();
-            // ³õÊ¼»¯È¦´æÓëÏû·Ñ
+            // åˆå§‹åŒ–åœˆå­˜ä¸æ¶ˆè´¹
             case condef.INS_NIIT_TRANS:
-                // ³õÊ¼»¯È¦´æ
+                // åˆå§‹åŒ–åœˆå­˜
                 if (papdu.p1 == (byte)0x00)
                     return init_load();
-                // ³õÊ¼»¯Ïû·Ñ
+                // åˆå§‹åŒ–æ¶ˆè´¹
                 if (papdu.p1 == (byte)0x01)
                     return init_purchase();
                 ISOException.throwIt(ISO7816.SW_WRONG_P1P2);
-            // È¦´æ
+            // åœˆå­˜
             case condef.INS_LOAD:
                 return load();
-            // Ïû·Ñ
+            // æ¶ˆè´¹
             case condef.INS_PURCHASE:
                 return purchase();
-            // ²éÑ¯Óà¶î
+            // æŸ¥è¯¢ä½™é¢
             case condef.INS_GET_BALANCE:
                 return get_balance();
-            // ²âÊÔ¹ı³ÌÃÜÔ¿Ëã·¨
+            // æµ‹è¯•è¿‡ç¨‹å¯†é’¥ç®—æ³•
             case condef.INS_GET_SESPK:
             	return test_processkey();
-            // ²âÊÔMACËã·¨
+            // æµ‹è¯•MACç®—æ³•
             case condef.INS_GET_MAC:
             	return test_mackey();
         }    
         ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
         return false;
     }
-    //²âÊÔ
+    //æµ‹è¯•
     /*
-     * ²âÊÔ¹ı³ÌÃÜÔ¿
+     * æµ‹è¯•è¿‡ç¨‹å¯†é’¥
      */
     private boolean test_processkey() {
     	short KEY_LEN=16, DATA_LEN=8;
@@ -128,7 +128,7 @@ public class Purse extends Applet {
 		return true;
     }
     /*
-     * ²âÊÔMACÃÜÔ¿
+     * æµ‹è¯•MACå¯†é’¥
      */
     private boolean test_mackey() {
     	short KEY_LEN=8, DATA_LEN=(short) (papdu.lc-KEY_LEN);
@@ -140,20 +140,20 @@ public class Purse extends Applet {
     	pc.gen_ac(key, data, DATA_LEN, papdu.data);
     	return true;
     }
-    // ÎÄ¼ş½¨Á¢
+    // æ–‡ä»¶å»ºç«‹
     private boolean create_file() {
-        // ÅĞ¶ÏÈ¡Öµ²Î¼ûÊµÑéÎÄµµ2£¬¸ù¾İDataÓòByte1È·¶¨ÎÄ¼şÀàĞÍ
+        // åˆ¤æ–­å–å€¼å‚è§å®éªŒæ–‡æ¡£2ï¼Œæ ¹æ®DataåŸŸByte1ç¡®å®šæ–‡ä»¶ç±»å‹
         switch (papdu.data[0]) {
-            // µç×ÓÇ®°üÎÄ¼ş
+            // ç”µå­é’±åŒ…æ–‡ä»¶
             case condef.EP_FILE:
                 return ep_file();
-            // ÃÜÔ¿ÎÄ¼ş£¬Ó¦µ±ÓÅÏÈ´´½¨
+            // å¯†é’¥æ–‡ä»¶ï¼Œåº”å½“ä¼˜å…ˆåˆ›å»º
             case condef.KEY_FILE:
                 return key_file();
-            // Ó¦ÓÃ»ù±¾ÎÄ¼ş
+            // åº”ç”¨åŸºæœ¬æ–‡ä»¶
             case condef.CARD_FILE:
                 return card_file();
-            // ³Ö¿¨ÈË»ù±¾ÎÄ¼ş
+            // æŒå¡äººåŸºæœ¬æ–‡ä»¶
             case condef.PERSON_FILE:
                 return person_file();
             default: 
@@ -161,7 +161,7 @@ public class Purse extends Applet {
         }
         return true;
     }
-    // ½¨Á¢µç×ÓÇ®°üÎÄ¼ş£¬²Î¼ûÊµÑéÎÄµµ2
+    // å»ºç«‹ç”µå­é’±åŒ…æ–‡ä»¶ï¼Œå‚è§å®éªŒæ–‡æ¡£2
     private boolean ep_file() {
         if (papdu.cla != (byte)0x80)
             ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
@@ -169,16 +169,16 @@ public class Purse extends Applet {
             ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
         if (papdu.p1 != (byte)0x00 && papdu.p2 != (byte)0x18)
             ISOException.throwIt(ISO7816.SW_WRONG_P1P2);
-        // ÖØ¸´´´½¨
+        // é‡å¤åˆ›å»º
         if (EPFile != null)
             ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
-        // Ã»ÓĞÃÜÔ¿ÎÄ¼ş
+        // æ²¡æœ‰å¯†é’¥æ–‡ä»¶
         if (keyFile == null)
             ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
         this.EPFile = new EPFile(keyFile);
         return true;
     }
-    // ½¨Á¢ÃÜÔ¿ÎÄ¼ş£¬²Î¼ûÊµÑéÎÄµµ2
+    // å»ºç«‹å¯†é’¥æ–‡ä»¶ï¼Œå‚è§å®éªŒæ–‡æ¡£2
     private boolean key_file() {
         if (papdu.cla != (byte)0x80)
             ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
@@ -186,13 +186,13 @@ public class Purse extends Applet {
             ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
         if (papdu.p1 != (byte)0x00 && papdu.p2 != (byte)0x00)
             ISOException.throwIt(ISO7816.SW_WRONG_P1P2);
-        // ÖØ¸´´´½¨
+        // é‡å¤åˆ›å»º
         if (keyFile != null)
             ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
         this.keyFile = new KeyFile();
         return true;
     }
-    // ½¨Á¢Ó¦ÓÃ»ù±¾ÎÄ¼ş£¬²Î¼ûÊµÑéÎÄµµ2
+    // å»ºç«‹åº”ç”¨åŸºæœ¬æ–‡ä»¶ï¼Œå‚è§å®éªŒæ–‡æ¡£2
     private boolean card_file() {
         if (papdu.cla != (byte)0x80)
             ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
@@ -200,17 +200,17 @@ public class Purse extends Applet {
             ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
         if (papdu.p1 != (byte)0x00 && papdu.p2 != (byte)0x16)
             ISOException.throwIt(ISO7816.SW_WRONG_P1P2);
-        // ÖØ¸´´´½¨
+        // é‡å¤åˆ›å»º
         if (cardFile != null)
             ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
-        // Ã»ÓĞÃÜÔ¿ÎÄ¼ş
+        // æ²¡æœ‰å¯†é’¥æ–‡ä»¶
         if (keyFile == null)
             ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
-        // ´«ÈëÒªĞ´ÈëµÄÄÚÈİ
+        // ä¼ å…¥è¦å†™å…¥çš„å†…å®¹
         this.cardFile = new BinaryFile(papdu.data);
         return true;
     }
-    // ½¨Á¢³Ö¿¨ÈËĞÅÏ¢ÎÄ¼ş£¬²Î¼ûÊµÑéÎÄµµ2
+    // å»ºç«‹æŒå¡äººä¿¡æ¯æ–‡ä»¶ï¼Œå‚è§å®éªŒæ–‡æ¡£2
     private boolean person_file() {
         if (papdu.cla != (byte)0x80)
             ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
@@ -218,78 +218,78 @@ public class Purse extends Applet {
             ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
         if (papdu.p1 != (byte)0x00 && papdu.p2 != (byte)0x17)
             ISOException.throwIt(ISO7816.SW_WRONG_P1P2);
-        // ÖØ¸´´´½¨
+        // é‡å¤åˆ›å»º
         if (personFile != null)
             ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
-        // Ã»ÓĞÃÜÔ¿ÎÄ¼ş
+        // æ²¡æœ‰å¯†é’¥æ–‡ä»¶
         if (keyFile == null)
             ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
-        // ´«ÈëÒªĞ´ÈëµÄÄÚÈİ
+        // ä¼ å…¥è¦å†™å…¥çš„å†…å®¹
         this.personFile = new BinaryFile(papdu.data);
         return true;
     }
-    // Ğ´ÈëÃÜÔ¿£¬²Î¼ûÊµÑéÎÄµµ2
+    // å†™å…¥å¯†é’¥ï¼Œå‚è§å®éªŒæ–‡æ¡£2
     private boolean write_key() {
-        // Ã»ÓĞÃÜÔ¿ÎÄ¼ş
+        // æ²¡æœ‰å¯†é’¥æ–‡ä»¶
         if (keyFile == null)
             ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
         if (papdu.cla != (byte)0x80)
             ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
-        // ==0x00ĞÂÔö£¬==0x01ĞŞ¸Ä
+        // ==0x00æ–°å¢ï¼Œ==0x01ä¿®æ”¹
         if (papdu.p1 != (byte)0x00 && papdu.p1 != (byte)0x01)
             ISOException.throwIt(ISO7816.SW_WRONG_P1P2);
-        // ÃÜÔ¿±êÊ¶Ö»ÓĞÈıÖÖ0x06£¬0x07£¬0x08£¬²Î¼ûÊµÑéÎÄµµ2
+        // å¯†é’¥æ ‡è¯†åªæœ‰ä¸‰ç§0x06ï¼Œ0x07ï¼Œ0x08ï¼Œå‚è§å®éªŒæ–‡æ¡£2
         if (papdu.p2 != (byte)0x06 && papdu.p2 != (byte)0x07 && papdu.p2 != (byte)0x08)
             ISOException.throwIt(ISO7816.SW_WRONG_P1P2);
-        // ³¤¶È²»ÄÜÎª0Ò²²»ÄÜ³¬¹ı21
+        // é•¿åº¦ä¸èƒ½ä¸º0ä¹Ÿä¸èƒ½è¶…è¿‡21
         if (papdu.lc == 0 || papdu.lc > 21)
             ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-        // ÎÄ¼ş¿Õ¼äÒÑÂú
+        // æ–‡ä»¶ç©ºé—´å·²æ»¡
         if (keyFile.recNum >= 3)
             ISOException.throwIt(ISO7816.SW_FILE_FULL);
-        // Ìí¼ÓÃÜÔ¿
+        // æ·»åŠ å¯†é’¥
         this.keyFile.addkey(papdu.p2, papdu.lc, papdu.data);
         return true;
     }
-    // Ğ´Èë¶ş½øÖÆÎÄ¼ş£¬²Î¼ûÊµÑéÎÄµµ2
+    // å†™å…¥äºŒè¿›åˆ¶æ–‡ä»¶ï¼Œå‚è§å®éªŒæ–‡æ¡£2
     private boolean write_bin() {
-        // Ã»ÓĞÃÜÔ¿ÎÄ¼ş
+        // æ²¡æœ‰å¯†é’¥æ–‡ä»¶
         if (keyFile == null)
             ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
         if (papdu.cla != (byte)0x00)
             ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
         if (papdu.p1 != (byte)0x16 && papdu.p1 != (byte)0x17)
             ISOException.throwIt(ISO7816.SW_WRONG_P1P2);
-        // Ğ´Èë³¤¶È·Ç0
+        // å†™å…¥é•¿åº¦é0
         if (papdu.lc == 0)
             ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-        // Ã»ÓĞ¶ş½øÖÆÎÄ¼ş£¬p1==0x16±íÊ¾Ó¦ÓÃ»ù±¾ÎÄ¼şcardFile£¬==0x17±íÊ¾³Ö¿¨ÈË»ù±¾ÎÄ¼şpersonFile
+        // æ²¡æœ‰äºŒè¿›åˆ¶æ–‡ä»¶ï¼Œp1==0x16è¡¨ç¤ºåº”ç”¨åŸºæœ¬æ–‡ä»¶cardFileï¼Œ==0x17è¡¨ç¤ºæŒå¡äººåŸºæœ¬æ–‡ä»¶personFile
         if (papdu.p1 == (byte)0x16 && cardFile == null)
             ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
         if (papdu.p1 == (byte)0x17 && personFile == null)
             ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
-        // Ğ´ÈëÒ»Ìõ¶ş½øÖÆÃüÁîµ½ÎÄ¼ş
+        // å†™å…¥ä¸€æ¡äºŒè¿›åˆ¶å‘½ä»¤åˆ°æ–‡ä»¶
         if (papdu.p1 == (byte)0x16)
             this.cardFile.write_binary(papdu.p2, papdu.lc, papdu.data);
         else if (papdu.p1 == (byte)0x17)
             this.personFile.write_binary(papdu.p2, papdu.lc, papdu.data);
         return true;
     }
-    // ¶ÁÈ¡¶ş½øÖÆÎÄ¼ş£¬²Î¼ûÊµÑéÎÄµµ2
+    // è¯»å–äºŒè¿›åˆ¶æ–‡ä»¶ï¼Œå‚è§å®éªŒæ–‡æ¡£2
     private boolean read_bin() {
-        // Ã»ÓĞÃÜÔ¿ÎÄ¼ş
+        // æ²¡æœ‰å¯†é’¥æ–‡ä»¶
         if (keyFile == null)
             ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
         if (papdu.cla != (byte)0x00)
             ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
         if (papdu.p1 != (byte)0x16 && papdu.p1 != (byte)0x17)
             ISOException.throwIt(ISO7816.SW_WRONG_P1P2);
-        // Ã»ÓĞ¶ş½øÖÆÎÄ¼ş£¬p1==0x16±íÊ¾Ó¦ÓÃ»ù±¾ÎÄ¼şcardFile£¬==0x17±íÊ¾³Ö¿¨ÈË»ù±¾ÎÄ¼şpersonFile
+        // æ²¡æœ‰äºŒè¿›åˆ¶æ–‡ä»¶ï¼Œp1==0x16è¡¨ç¤ºåº”ç”¨åŸºæœ¬æ–‡ä»¶cardFileï¼Œ==0x17è¡¨ç¤ºæŒå¡äººåŸºæœ¬æ–‡ä»¶personFile
         if (papdu.p1 == (byte)0x16 && cardFile == null)
             ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
         if (papdu.p1 == (byte)0x17 && personFile == null)
             ISOException.throwIt(ISO7816.SW_CONDITIONS_NOT_SATISFIED);
-        // ¶ÁÈ¡ÏàÓ¦ÎÄ¼ş
+        // è¯»å–ç›¸åº”æ–‡ä»¶
         if (papdu.p1 == (byte)0x16)
             this.cardFile.read_binary(papdu.p2, papdu.le, papdu.data);
         else if (papdu.p1 == (byte)0x17)
@@ -297,7 +297,7 @@ public class Purse extends Applet {
         return true;
     }
 
-    // È¦´æ³õÊ¼»¯
+    // åœˆå­˜åˆå§‹åŒ–
     private boolean init_load() {
         short num, rc;
         if (papdu.cla != (byte)0x80)
@@ -308,20 +308,20 @@ public class Purse extends Applet {
             ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
         if (EPFile == null)
             ISOException.throwIt(ISO7816.SW_FILE_NOT_FOUND);
-        // ¸ù¾İÃÜÔ¿±êÊ¶»ñÈ¡ÃÜÔ¿¼ÇÂ¼ºÅ
+        // æ ¹æ®å¯†é’¥æ ‡è¯†è·å–å¯†é’¥è®°å½•å·
         num = keyFile.findkey(papdu.data[0]);
-        // ÕÒ²»µ½ÃÜÔ¿
+        // æ‰¾ä¸åˆ°å¯†é’¥
         if (num == 0x00)
             ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
-        // 0³É¹¦£¬2³¬¶î
+        // 0æˆåŠŸï¼Œ2è¶…é¢
         rc = EPFile.init4load(num, papdu.data);
         if (rc == 2)
             ISOException.throwIt(condef.SW_LOAD_FULL);
-        // ¿ÉÄÜÓĞbug
+        // å¯èƒ½æœ‰bug
         papdu.le = (short)0x10;
         return true;
     }
-    // È¦´æÃüÁî
+    // åœˆå­˜å‘½ä»¤
     private boolean load() {
         short rc;
         if (papdu.cla != (byte)0x80)
@@ -332,7 +332,7 @@ public class Purse extends Applet {
             ISOException.throwIt(ISO7816.SW_FILE_NOT_FOUND);
         if (papdu.lc != (short)0x0B)
             ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-        // 1MAC2Ğ£Ñé´íÎó£¬2³¬¶î£¬3Î´ÕÒµ½ÃÜÔ¿
+        // 1MAC2æ ¡éªŒé”™è¯¯ï¼Œ2è¶…é¢ï¼Œ3æœªæ‰¾åˆ°å¯†é’¥
         rc = EPFile.load(papdu.data);
         if (rc == 1)
             ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
@@ -340,12 +340,12 @@ public class Purse extends Applet {
             ISOException.throwIt(condef.SW_LOAD_FULL);
         else if (rc == 3)
             ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
-        // ¿ÉÄÜÓĞbug
+        // å¯èƒ½æœ‰bug
         papdu.le = (short)0x04;
         return true;
     }
     
-    // Ïû·Ñ³õÊ¼»¯
+    // æ¶ˆè´¹åˆå§‹åŒ–
     private boolean init_purchase() {
         short num, rc;
         if (papdu.cla != (byte)0x80)
@@ -356,20 +356,20 @@ public class Purse extends Applet {
             ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
         if (EPFile == null)
             ISOException.throwIt(ISO7816.SW_FILE_NOT_FOUND);
-        // ¸ù¾İÃÜÔ¿±êÊ¶»ñÈ¡ÃÜÔ¿¼ÇÂ¼ºÅ
+        // æ ¹æ®å¯†é’¥æ ‡è¯†è·å–å¯†é’¥è®°å½•å·
         num = keyFile.findkey(papdu.data[0]);
-        // ÕÒ²»µ½ÃÜÔ¿
+        // æ‰¾ä¸åˆ°å¯†é’¥
         if (num == 0x00)
             ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
-        // 0³É¹¦£¬2³¬¶î
+        // 0æˆåŠŸï¼Œ2è¶…é¢
         rc = EPFile.init4purchase(num, papdu.data);
         if (rc == 2)
             ISOException.throwIt(condef.SW_BALANCE_NOT_ENOUGH);
-        // ¿ÉÄÜÓĞbug
+        // å¯èƒ½æœ‰bug
         papdu.le = (short)0x0F;
         return true;
     }
-    // Ïû·ÑÃüÁî
+    // æ¶ˆè´¹å‘½ä»¤
     private boolean purchase() {
         short rc;
         if (papdu.cla != (byte)0x80)
@@ -380,7 +380,7 @@ public class Purse extends Applet {
             ISOException.throwIt(ISO7816.SW_FILE_NOT_FOUND);
         if (papdu.lc != (short)0x0F)
             ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
-        // 1MAC2Ğ£Ñé´íÎó£¬2³¬¶î£¬3Î´ÕÒµ½ÃÜÔ¿
+        // 1MAC2æ ¡éªŒé”™è¯¯ï¼Œ2è¶…é¢ï¼Œ3æœªæ‰¾åˆ°å¯†é’¥
         rc = EPFile.purchase(papdu.data);
         if (rc == 1)
             ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
@@ -388,12 +388,12 @@ public class Purse extends Applet {
             ISOException.throwIt(condef.SW_BALANCE_NOT_ENOUGH);
         else if (rc == 3)
             ISOException.throwIt(ISO7816.SW_RECORD_NOT_FOUND);
-        // ¿ÉÄÜÓĞbug
+        // å¯èƒ½æœ‰bug
         papdu.le = (short)0x08;
         return true;
     }
     
-    // Óà¶î²éÑ¯
+    // ä½™é¢æŸ¥è¯¢
     private boolean get_balance() {
         short result;
         byte[] balance = JCSystem.makeTransientByteArray((short)4, JCSystem.CLEAR_ON_DESELECT);
@@ -401,11 +401,11 @@ public class Purse extends Applet {
             ISOException.throwIt(ISO7816.SW_CLA_NOT_SUPPORTED);
         if (papdu.p1 != (byte)0x01 && papdu.p2 != (byte)0x02)
             ISOException.throwIt(ISO7816.SW_WRONG_P1P2);
-        // »ñÈ¡Óà¶î
+        // è·å–ä½™é¢
         result = EPFile.get_balance(balance);
         if (result == (short)4)
             Util.arrayCopyNonAtomic(balance, (short)0, papdu.data, (short)0, (short)4);
-        // ¿ÉÄÜÓĞbug
+        // å¯èƒ½æœ‰bug
         papdu.le = (short)0x04;
         return true;
     }
